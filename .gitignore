@@ -1,0 +1,15 @@
+# dependencies
+node_modules/
+
+# next.js build output
+.next/
+out/
+
+# misc
+*.tsbuildinfo
+.vercel
+.DS_Store
+*.log
+test-results/
+playwright-report/
+screenshots/
