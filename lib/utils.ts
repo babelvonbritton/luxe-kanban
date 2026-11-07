@@ -25,11 +25,11 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-export function formatTimestamp(iso: string | null | undefined): string {
-  if (!iso) return 'Belum pernah';
+export function formatTimestamp(iso: string | null | undefined, locale = 'id-ID'): string {
+  if (!iso) return locale === 'en-US' ? 'Never' : 'Belum pernah';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return 'Belum pernah';
-  return d.toLocaleString('id-ID', {
+  if (Number.isNaN(d.getTime())) return locale === 'en-US' ? 'Never' : 'Belum pernah';
+  return d.toLocaleString(locale, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -38,8 +38,8 @@ export function formatTimestamp(iso: string | null | undefined): string {
   });
 }
 
-export function formatDateShort(iso: string): string {
+export function formatDateShort(iso: string, locale = 'id-ID'): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' });
 }

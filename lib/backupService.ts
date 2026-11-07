@@ -26,10 +26,13 @@ export interface BackupResult {
   totalTasks: number;
 }
 
+type Locale = 'id' | 'en-US';
+
 /** BACKUP: kumpulkan → ZIP (kompres) → unduh. */
 export async function performBackup(
   storage: StorageLike,
   report: (e: StepEvent) => void,
+  locale: Locale = 'id',
 ): Promise<BackupResult> {
   // Tahap 1: verifikasi — pastikan store granular dapat dibaca
   let board: Record<Status, Task[]>;
@@ -41,7 +44,9 @@ export async function performBackup(
     }
     report({
       id: 'verify',
-      note: `${count} tugas terbaca dari 3 store granular (todo/doing/done).`,
+      note: locale === 'en-US'
+        ? `${count} ${count === 1 ? 'task' : 'tasks'} found across all three status columns.`
+        : `${count} tugas terbaca dari 3 store granular (todo/doing/done).`,
     });
   } catch (error) {
     report({
@@ -59,7 +64,9 @@ export async function performBackup(
   };
   report({
     id: 'validate',
-    note: `todo: ${counts.todo} · doing: ${counts.doing} · done: ${counts.done} — struktur store valid.`,
+    note: locale === 'en-US'
+      ? `To Do: ${counts.todo} · In Progress: ${counts.doing} · Done: ${counts.done} — all data stores are valid.`
+      : `todo: ${counts.todo} · doing: ${counts.doing} · done: ${counts.done} — struktur store valid.`,
   });
 
   // Tahap 3: memuat data baru (kompres menjadi ZIP)
@@ -74,7 +81,12 @@ export async function performBackup(
     });
     throw error;
   }
-  report({ id: 'load', note: `Arsip dibuat (${zipBytes.length.toLocaleString('id-ID')} bytes).` });
+  report({
+    id: 'load',
+    note: locale === 'en-US'
+      ? `Archive created (${zipBytes.length.toLocaleString('en-US')} bytes).`
+      : `Arsip dibuat (${zipBytes.length.toLocaleString('id-ID')} bytes).`,
+  });
 
   // Tahap 4 (finish): catat meta + siapkan unduhan
   const meta = readMeta(storage);
@@ -94,6 +106,7 @@ export async function performRestore(
   fileBytes: Uint8Array,
   fileName: string,
   report: (e: StepEvent) => void,
+  locale: Locale = 'id',
 ): Promise<{ totalTasks: number }> {
   // Tahap 1: verifikasi arsip
   let extracted: ReturnType<typeof unzipBackup>;
@@ -101,7 +114,9 @@ export async function performRestore(
     extracted = unzipBackup(fileBytes);
     report({
       id: 'verify',
-      note: `"${fileName}" terbuka — manifest + 3 store ditemukan.`,
+      note: locale === 'en-US'
+        ? `“${fileName}” opened — manifest and all three data stores found.`
+        : `"${fileName}" terbuka — manifest + 3 store ditemukan.`,
     });
   } catch (error) {
     report({
@@ -121,7 +136,9 @@ export async function performRestore(
     }
     report({
       id: 'validate',
-      note: `${total} tugas lolos validasi — ID unik, status dikenal, tanggal valid.`,
+      note: locale === 'en-US'
+        ? `${total} ${total === 1 ? 'task' : 'tasks'} passed validation — unique IDs, recognized statuses, and valid dates.`
+        : `${total} tugas lolos validasi — ID unik, status dikenal, tanggal valid.`,
     });
   } catch (error) {
     report({
@@ -140,7 +157,13 @@ export async function performRestore(
       lastRestoreAt: nowIso(),
       restoredTaskCount: countBoardTasks(board),
     });
-    report({ id: 'load', note: `${countBoardTasks(board)} tugas tertulis ke store granular LocalStorage.` });
+    const count = countBoardTasks(board);
+    report({
+      id: 'load',
+      note: locale === 'en-US'
+        ? `${count} ${count === 1 ? 'task' : 'tasks'} saved to local storage.`
+        : `${count} tugas tertulis ke store granular LocalStorage.`,
+    });
   } catch (error) {
     report({
       id: 'load',

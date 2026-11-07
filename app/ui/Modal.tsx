@@ -3,6 +3,7 @@
 /** Modal generik: overlay + panel + tutup via X / backdrop / Escape. */
 import { useEffect } from 'react';
 import { IconX } from './Icons';
+import { useLocale } from '@/lib/i18n';
 
 interface Props {
   title: string;
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function Modal({ title, subtitle, onClose, closeable = true, narrow, children, footer }: Props) {
+  const { t } = useLocale();
   useEffect(() => {
     if (!closeable || !onClose) return;
     const onKey = (e: KeyboardEvent) => {
@@ -38,7 +40,7 @@ export function Modal({ title, subtitle, onClose, closeable = true, narrow, chil
             {subtitle ? <p className="modal-sub">{subtitle}</p> : null}
           </div>
           {closeable && onClose ? (
-            <button className="icon-btn" onClick={onClose} aria-label="Tutup dialog">
+            <button className="icon-btn" onClick={onClose} aria-label={t('closeDialog')}>
               <IconX />
             </button>
           ) : null}

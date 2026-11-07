@@ -8,6 +8,7 @@
  */
 import { useCallback, useRef, useState } from 'react';
 import { createOperationSteps, OperationStep, StepId, withStep } from '@/lib/steps';
+import { useLocale } from '@/lib/i18n';
 
 export interface StepEvent {
   id: StepId;
@@ -29,6 +30,7 @@ export interface UseApiOperation {
 const PACE = 520; // jeda antar-tahap (ms) agar proses terlihat
 
 export function useApiOperation(): UseApiOperation {
+  const { t } = useLocale();
   const [mode, setMode] = useState<'backup' | 'restore' | null>(null);
   const [steps, setSteps] = useState<OperationStep[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +74,7 @@ export function useApiOperation(): UseApiOperation {
         setFinished(true);
         await wait(420);
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Terjadi kesalahan yang tidak diketahui.';
+        const message = err instanceof Error ? err.message : t('unknownError');
         // Tandai tahap "finish" gagal + tampilkan pesan
         setSteps((s) => s.map((st) => (st.state === 'active' ? { ...st, state: 'error' } : st)));
         setSteps((s) => withStep(s, 'finish', { state: 'error', note: 'Operasi tidak diselesaikan.' }));
@@ -83,7 +85,7 @@ export function useApiOperation(): UseApiOperation {
         runningRef.current = false;
       }
     },
-    [],
+    [t],
   );
 
   const close = useCallback(() => {

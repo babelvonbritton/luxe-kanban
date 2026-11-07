@@ -24,6 +24,7 @@ import { OperationModal } from '@/app/ui/OperationModal';
 import { TaskModal, TaskFormValues } from '@/app/ui/TaskModal';
 import { useApiOperation } from '@/app/ui/useApiOperation';
 import { IconAlert, IconArchive } from '@/app/ui/Icons';
+import { localeTag, useLocale } from '@/lib/i18n';
 
 type ModalState =
   | { kind: 'none' }
@@ -36,6 +37,7 @@ type ModalState =
 const PAGE_LOCK = 'lkOpsRunning';
 
 export function App() {
+  const { t, statusLabel, locale } = useLocale();
   const [ready, setReady] = useState(false);
   const [board, setBoard] = useState<Record<Status, Task[]>>({ todo: [], doing: [], done: [] });
   const [modal, setModal] = useState<ModalState>({ kind: 'none' });
@@ -65,10 +67,10 @@ export function App() {
       setLastBackupAt(readMeta(window.localStorage).lastBackupAt);
       setReady(true);
     } catch (error) {
-      showToast('err', error instanceof Error ? error.message : 'LocalStorage tidak dapat diakses.');
+      showToast('err', error instanceof Error ? error.message : t('localStorageUnavailable'));
       setReady(true);
     }
-  }, [showToast]);
+  }, [showToast, t]);
 
   /* ---------- persist setiap perubahan board ---------- */
   const commit = useCallback(
@@ -77,10 +79,10 @@ export function App() {
       try {
         writeAllTasks(window.localStorage, next);
       } catch (error) {
-        showToast('err', error instanceof Error ? error.message : 'Gagal menyimpan ke LocalStorage.');
+        showToast('err', error instanceof Error ? error.message : t('storageSaveFailed'));
       }
     },
-    [showToast],
+    [showToast, t],
   );
 
   /* ---------- CRUD ---------- */
@@ -90,14 +92,14 @@ export function App() {
       try {
         commit(addTask(board, { title: values.title, description: values.description }, values.status));
         setModal({ kind: 'none' });
-        showToast('ok', 'Tugas baru ditambahkan.');
+        showToast('ok', t('addedToast'));
       } catch (error) {
-        showToast('err', error instanceof Error ? error.message : 'Gagal menambahkan tugas.');
+        showToast('err', error instanceof Error ? error.message : t('createFailed'));
       } finally {
         setSaving(false);
       }
     },
-    [board, commit, showToast],
+    [board, commit, showToast, t],
   );
 
   const handleUpdate = useCallback(
@@ -114,30 +116,30 @@ export function App() {
         }
         commit(next);
         setModal({ kind: 'none' });
-        showToast('ok', 'Perubahan disimpan.');
+        showToast('ok', t('savedToast'));
       } catch (error) {
-        showToast('err', error instanceof Error ? error.message : 'Gagal menyimpan perubahan.');
+        showToast('err', error instanceof Error ? error.message : t('saveFailed'));
       } finally {
         setSaving(false);
       }
     },
-    [board, commit, showToast],
+    [board, commit, showToast, t],
   );
 
   const handleDelete = useCallback(
     (task: Task) => {
       commit(deleteTask(board, task.id));
       setModal({ kind: 'none' });
-      showToast('ok', 'Tugas dihapus.');
+      showToast('ok', t('deletedToast'));
     },
-    [board, commit, showToast],
+    [board, commit, showToast, t],
   );
 
   const handleStatusChange = useCallback(
     (task: Task, status: Status) => {
       if (status === task.status) return;
       setBusyTaskId(task.id);
-      // jeda mikro agar transisi select terasa & state render stabil
+      // Give the card's move animation a brief moment to settle.
       setTimeout(() => {
         try {
           commit(moveTask(board, task.id, status, 0));
@@ -183,12 +185,12 @@ export function App() {
   /* ---------- BACKUP ---------- */
   const handleBackup = useCallback(async () => {
     await op.run('backup', async (report) => {
-      const result = await performBackup(window.localStorage, report);
+      const result = await performBackup(window.localStorage, report, locale);
       pendingDownload.current = { fileName: result.fileName, bytes: result.zipBytes };
       setLastBackupAt(new Date().toISOString());
-      return `${result.totalTasks} tugas terarsipkan (${formatBytes(result.zipBytes.length)}).`;
+      return t('backupSummary', { count: result.totalTasks, size: formatBytes(result.zipBytes.length) });
     });
-  }, [op]);
+  }, [op, t, locale]);
 
   // Unduhan dipicu begitu operasi selesai (modal masih terbuka, tombol "Selesai" aktif)
   useEffect(() => {
@@ -206,49 +208,52 @@ export function App() {
         a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 4000);
       } catch {
-        showToast('err', 'Unduhan gagal dipicu oleh browser.');
+        showToast('err', t('downloadFailed'));
       }
     }
-  }, [op.finished, showToast]);
+  }, [op.finished, showToast, t]);
 
   /* ---------- RESTORE ---------- */
   const onPickRestoreFile = useCallback(
     (file: File | null) => {
       if (!file) return;
       if (file.size > 10 * 1024 * 1024) {
-        showToast('err', 'Ukuran file melebihi 10 MB — kemungkinan bukan backup Luxe Kanban.');
+        showToast('err', t('fileTooLarge'));
         return;
       }
       const reader = new FileReader();
-      reader.onerror = () => showToast('err', 'File tidak dapat dibaca.');
+      reader.onerror = () => showToast('err', t('fileUnreadable'));
       reader.onload = () => {
         const bytes = new Uint8Array(reader.result as ArrayBuffer);
         setModal({ kind: 'restore-confirm', bytes, fileName: file.name });
       };
       reader.readAsArrayBuffer(file);
     },
-    [showToast],
+    [showToast, t],
   );
 
   const handleRestore = useCallback(
     async (bytes: Uint8Array, fileName: string) => {
       setModal({ kind: 'none' });
       await op.run('restore', async (report) => {
-        const result = await performRestore(window.localStorage, bytes, fileName, report);
+        const result = await performRestore(window.localStorage, bytes, fileName, report, locale);
         const fresh = readAllTasks(window.localStorage);
         setBoard(fresh);
-        setRestoreInfo(`Restore terakhir: ${formatTimestamp(new Date().toISOString())} — ${result.totalTasks} tugas.`);
-        return `${result.totalTasks} tugas dimuat dari backup.`;
+        setRestoreInfo(t('restoreLast', {
+          date: formatTimestamp(new Date().toISOString(), localeTag(locale)),
+          count: result.totalTasks,
+        }));
+        return t('restoreSummary', { count: result.totalTasks });
       });
     },
-    [op, showToast],
+    [op, showToast, t, locale],
   );
 
   const handleReset = useCallback(() => {
     commit({ todo: [], doing: [], done: [] });
     setModal({ kind: 'none' });
-    showToast('ok', 'Papan dikosongkan.');
-  }, [commit, showToast]);
+    showToast('ok', t('boardClearedToast'));
+  }, [commit, showToast, t]);
 
   /* ---------- kunci halaman selama operasi berjalan ---------- */
   useEffect(() => {
@@ -268,7 +273,7 @@ export function App() {
   return (
     <AppShell
       totalTasks={total}
-      lastBackupLabel={formatTimestamp(lastBackupAt)}
+      lastBackupLabel={formatTimestamp(lastBackupAt, localeTag(locale))}
       onBackup={handleBackup}
       onRestoreClick={() => fileInputRef.current?.click()}
       onResetClick={() => setModal({ kind: 'reset' })}
@@ -291,10 +296,10 @@ export function App() {
           {STATUSES.map((s) => (
             <div key={s} className="column" style={{ opacity: 0.6 }}>
               <div className="column-head">
-                <h2 className="column-title">{STATUS_META[s].label}</h2>
+                <h2 className="column-title">{statusLabel(s)}</h2>
               </div>
               <div className="column-body">
-                <div className="drop-hint">Memuat…</div>
+                <div className="drop-hint">{t('loading')}</div>
               </div>
             </div>
           ))}
@@ -327,7 +332,7 @@ export function App() {
 
       <footer className="app-foot">
         <span>
-          Data disimpan lokal di perangkat Anda.    &copy; 2026 - Alzam A.
+          {t('dataStoredLocally')} &copy; 2026 - Alzam A.
         </span>
       </footer>
 
@@ -355,12 +360,11 @@ export function App() {
 
       {modal.kind === 'delete-task' ? (
         <ConfirmModal
-          title="Hapus Tugas"
-          confirmLabel="Hapus"
+          title={t('deleteTaskTitle')}
+          confirmLabel={t('delete')}
           message={
             <>
-              Tugas <strong>“{modal.task.title}”</strong> akan dihapus permanen dari papan. Tindakan ini tidak dapat
-              dibatalkan (kecuali Anda punya backup).
+              {t('deleteTaskConfirm', { title: modal.task.title })}
             </>
           }
           onConfirm={() => handleDelete(modal.kind === 'delete-task' ? modal.task : ({} as Task))}
@@ -370,12 +374,11 @@ export function App() {
 
       {modal.kind === 'reset' ? (
         <ConfirmModal
-          title="Kosongkan Papan"
-          confirmLabel="Kosongkan"
+          title={t('clearBoardTitle')}
+          confirmLabel={t('clear')}
           message={
             <>
-              Seluruh tugas di ketiga kolom akan dihapus dari LocalStorage. Pertimbangkan <strong>Backup</strong>{' '}
-              terlebih dahulu — tindakan ini tidak dapat dibatalkan.
+              {t('clearBoardConfirm')}
             </>
           }
           onConfirm={handleReset}
@@ -385,12 +388,11 @@ export function App() {
 
       {modal.kind === 'restore-confirm' ? (
         <ConfirmModal
-          title="Pulihkan dari Backup"
-          confirmLabel="Muat Backup"
+          title={t('restoreTitle')}
+          confirmLabel={t('loadBackup')}
           message={
             <>
-              File <strong>“{modal.fileName}”</strong> akan diverifikasi & divalidasi, lalu{' '}
-              <strong>menimpa seluruh data saat ini</strong> di LocalStorage. Lanjutkan?
+              {t('restoreConfirm', { fileName: modal.fileName })}
             </>
           }
           onConfirm={() =>

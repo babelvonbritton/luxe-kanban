@@ -5,6 +5,7 @@ import { CSSProperties, DragEvent } from 'react';
 import { Status, STATUS_META, Task } from '@/lib/types';
 import { IconCheckCircle, IconClipboard, IconHourglass, IconPlus } from './Icons';
 import { TaskCard } from './TaskCard';
+import { useLocale } from '@/lib/i18n';
 
 interface Props {
   status: Status;
@@ -43,6 +44,7 @@ export function Column({
   onDragLeaveColumn,
   onDropInColumn,
 }: Props) {
+  const { statusLabel, statusHint, t } = useLocale();
   const meta = STATUS_META[status];
   const Icon = COLUMN_ICONS[status];
 
@@ -50,7 +52,7 @@ export function Column({
     <section
       className={`column${isDropActive ? ' is-drop' : ''}`}
       style={{ '--col-accent': meta.accent } as CSSProperties}
-      aria-label={`${meta.label}: ${tasks.length} tugas`}
+      aria-label={`${statusLabel(status)}: ${tasks.length} ${t('tasks')}`}
       onDragOver={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
@@ -65,11 +67,11 @@ export function Column({
             <Icon size={18} />
           </span>
           <div style={{ minWidth: 0 }}>
-            <h2 className="column-title">{meta.label}</h2>
-            <p className="column-hint">{meta.hint}</p>
+            <h2 className="column-title">{statusLabel(status)}</h2>
+            <p className="column-hint">{statusHint(status)}</p>
           </div>
         </div>
-        <span className="count-badge" aria-label={`${tasks.length} tugas`}>
+        <span className="count-badge" aria-label={`${tasks.length} ${t('tasks')}`}>
           {tasks.length}
         </span>
       </header>
@@ -88,12 +90,12 @@ export function Column({
             onDragEnd={onDragEndTask}
           />
         ))}
-        {tasks.length === 0 ? <div className="drop-hint">Tarik kartu ke sini — kolom ini masih kosong.</div> : null}
+        {tasks.length === 0 ? <div className="drop-hint">{t('emptyColumn')}</div> : null}
       </div>
 
       <footer className="column-foot">
         <button className="btn subtle" onClick={onAddClick}>
-          <IconPlus size={16} /> Tambah tugas
+          <IconPlus size={16} /> {t('addTask')}
         </button>
       </footer>
     </section>

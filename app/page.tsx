@@ -1,5 +1,10 @@
 import { App } from '@/app/App';
+import { LocaleProvider } from '@/lib/i18n';
 
 export default function Page() {
-  return <App />;
+  return (
+    <LocaleProvider>
+      <App />
+    </LocaleProvider>
+  );
 }

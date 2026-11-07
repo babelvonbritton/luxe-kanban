@@ -4,6 +4,7 @@
 import { FormEvent, useState } from 'react';
 import { Status, STATUS_META, Task } from '@/lib/types';
 import { Modal } from './Modal';
+import { useLocale } from '@/lib/i18n';
 
 export interface TaskFormValues {
   title: string;
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export function TaskModal({ mode, task, defaultStatus, saving, onSubmit, onClose }: Props) {
+  const { t, statusLabel } = useLocale();
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.description ?? '');
   const [status, setStatus] = useState<Status>(task?.status ?? defaultStatus);
@@ -29,7 +31,7 @@ export function TaskModal({ mode, task, defaultStatus, saving, onSubmit, onClose
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      setError('Judul tugas wajib diisi.');
+      setError(t('requiredTitle'));
       return;
     }
     onSubmit({ title, description, status });
@@ -37,28 +39,28 @@ export function TaskModal({ mode, task, defaultStatus, saving, onSubmit, onClose
 
   return (
     <Modal
-      title={mode === 'create' ? 'Tugas Baru' : 'Edit Tugas'}
-      subtitle={mode === 'create' ? 'Tambahkan tugas ke papan Anda.' : `ID: ${task?.id}`}
+      title={mode === 'create' ? t('createTask') : t('editTaskTitle')}
+      subtitle={mode === 'create' ? t('addTaskSubtitle') : `ID: ${task?.id}`}
       onClose={onClose}
       footer={
         <>
           <button className="btn subtle" onClick={onClose} disabled={saving}>
-            Batal
+            {t('cancel')}
           </button>
           <button className="btn primary" onClick={handleSubmit as unknown as () => void} disabled={saving}>
-            {saving ? 'Menyimpan…' : mode === 'create' ? 'Tambahkan' : 'Simpan Perubahan'}
+            {saving ? t('saving') : mode === 'create' ? t('add') : t('saveChanges')}
           </button>
         </>
       }
     >
       <form onSubmit={handleSubmit} id="task-form">
         <div className="field">
-          <label htmlFor="task-title">Judul</label>
+          <label htmlFor="task-title">{t('title')}</label>
           <input
             id="task-title"
             value={title}
             autoFocus
-            placeholder="cth. Finalisasi proposal klien"
+            placeholder={t('titlePlaceholder')}
             onChange={(e) => {
               setTitle(e.target.value);
               if (error) setError(null);
@@ -68,21 +70,21 @@ export function TaskModal({ mode, task, defaultStatus, saving, onSubmit, onClose
         </div>
 
         <div className="field">
-          <label htmlFor="task-desc">Deskripsi (opsional)</label>
+          <label htmlFor="task-desc">{t('descriptionOptional')}</label>
           <textarea
             id="task-desc"
             value={description}
-            placeholder="Tambahkan detail, tautan, atau catatan…"
+            placeholder={t('descriptionPlaceholder')}
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>
 
         <div className="field">
-          <label htmlFor="task-status">{mode === 'create' ? 'Tempatkan di kolom' : 'Status'}</label>
+          <label htmlFor="task-status">{mode === 'create' ? t('placeInColumn') : t('status')}</label>
           <select id="task-status" value={status} onChange={(e) => setStatus(e.target.value as Status)}>
             {(Object.keys(STATUS_META) as Status[]).map((s) => (
               <option key={s} value={s}>
-                {STATUS_META[s].label}
+                {statusLabel(s)}
               </option>
             ))}
           </select>

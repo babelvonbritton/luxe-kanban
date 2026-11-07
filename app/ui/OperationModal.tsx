@@ -9,6 +9,7 @@ import { Modal } from './Modal';
 import { StepsView } from './StepsView';
 import { IconSpinner } from './Icons';
 import { OperationStep } from '@/lib/steps';
+import { useLocale } from '@/lib/i18n';
 
 interface Props {
   mode: 'backup' | 'restore';
@@ -19,19 +20,18 @@ interface Props {
   onClose: () => void;
 }
 
-const noun = (m: 'backup' | 'restore') => (m === 'backup' ? 'Backup' : 'Restore');
-
 export function OperationModal({ mode, running, error, steps, progress, onClose }: Props) {
+  const { t } = useLocale();
   const finished = !running; // selesai (sukses maupun error) → boleh ditutup
   return (
     <Modal
-      title={`${noun(mode)} Data`}
+      title={mode === 'backup' ? t('backupSteps') : t('restoreSteps')}
       subtitle={
         running
-          ? 'Mohon tunggu — jangan tutup halaman ini.'
+          ? t('waitDontClose')
           : error
-            ? 'Proses berakhir dengan kesalahan.'
-            : 'Proses selesai.'
+            ? t('operationError')
+            : t('operationComplete')
       }
       closeable={finished}
       onClose={onClose}
@@ -39,18 +39,18 @@ export function OperationModal({ mode, running, error, steps, progress, onClose 
         <>
           {running ? (
             <span style={{ marginRight: 'auto', color: 'var(--text-faint)', fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <IconSpinner size={14} /> Memproses… UI terkunci hingga selesai
+              <IconSpinner size={14} /> {t('processingLocked')}
             </span>
           ) : (
             <span style={{ marginRight: 'auto' }} />
           )}
           <button className={`btn ${error ? 'danger' : 'primary'}`} onClick={onClose} disabled={running}>
-            {error ? 'Tutup' : 'Selesai'}
+            {error ? t('close') : t('complete')}
           </button>
         </>
       }
     >
-      <StepsView steps={steps} progress={progress} error={error} />
+      <StepsView mode={mode} steps={steps} progress={progress} error={error} />
     </Modal>
   );
 }
